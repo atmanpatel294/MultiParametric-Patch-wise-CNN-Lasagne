@@ -1,5 +1,3 @@
-#This file contains the helper functions that import files, extract patches, rotate them to generate more samples.
-
 from __future__ import print_function
 import sys
 import os
@@ -10,75 +8,92 @@ import random
 
 def import_files():
 
-    file_list = glob.glob(path_to_the_folder_containing_all_files)
-    
-    imageContainer = np.zeros((no_of_images, height, width))
-    
+    flair_file_list = glob.glob("/Volumes/Work/Internship2016/Data/UpdatedTransformedRegionsOfInterest/Flair" + "/*.mat")
+    tmax_file_list = glob.glob("/Volumes/Work/Internship2016/Data/UpdatedTransformedRegionsOfInterest/Tmax" + "/*.mat")
+    ttp_file_list = glob.glob("/Volumes/Work/Internship2016/Data/UpdatedTransformedRegionsOfInterest/TTP" + "/*.mat")
+    adc_file_list = glob.glob("/Volumes/Work/Internship2016/Data/UpdatedTransformedRegionsOfInterest/Adc" + "/*.mat")
+
+
+    #all_bad_examples=np.load("/Volumes/Work/Internship2016/Data/Lists/bad_examples.npy")
+    all_bad_examples=[0, 1, 3, 7, 8, 9, 11, 13, 15, 16, 17, 18, 20, 22, 25, 28, 29, 31, 32, 33, 34, 35, 37, 38, 40, 47, 49, 50, 51, 52, 53, 54, 58, 60, 63, 65, 70, 72, 75, 76, 78, 80, 84, 86, 89, 90, 91, 92, 95, 96, 101, 103, 104, 107, 108, 109, 110, 113, 114, 116, 119, 122, 123, 124, 125, 126, 128, 130, 131, 136, 137, 139, 143, 147, 150, 151, 152, 156, 158, 159, 160, 166, 167, 170, 171, 174, 175, 179, 182, 183, 186, 188, 191, 195, 196, 197, 198, 199, 200, 201, 202, 204, 205, 206, 208, 210, 212, 217, 218, 221, 224, 225, 228, 229, 230, 232, 234, 235, 236, 239]
+    other_questionable=[30, 55, 82, 88, 98, 100, 111, 140, 141, 168, 169, 237]
+
+    flairIncluded=np.zeros((241,220,172))
+    tmaxIncluded=np.zeros((241,1,220,172))
+    ttpIncluded=np.zeros((241,1,220,172))
+    adcIncluded=np.zeros((241,1,220,172))
+    adcRoiIncluded=np.zeros((241,1,220,172))
     counter=0
-    
-    for i in range(len(file_list)):
-        file_path=file_list[i]
+    for i in range(len(flair_file_list)):
+        flair_file=flair_file_list[i]
+        tmax_file=tmax_file_list[i]
+        ttp_file=ttp_file_list[i]
+        adc_file=adc_file_list[i]
 
-        load_file=sio.loadmat(file_path) #if it is a .mat file
-        #otherwise use functions corresponding to your file format
-
-        a1,a2,a3=np.array(load_file).shape
-        
-        a=np.array(flair_file['roiTransformedFlair'])[:, :, (slc-1)]
-        if a.sum()>400:
-            a=a.reshape(1,220,172)
-            flairIncluded[counter]=a
-    #TMAX
-            slc=np.array(tmax_file['refPwi'])
-            a1,a2,a3=np.array(tmax_file['transformedPwi']).shape
+        flair_file=sio.loadmat(flair_file)
+        tmax_file=sio.loadmat(tmax_file)
+        ttp_file=sio.loadmat(ttp_file)
+        adc_file=sio.loadmat(adc_file)
+        if (i not in all_bad_examples and i not in other_questionable):
+            slc=np.array(flair_file['refFlair'])
+            a1,a2,a3=np.array(flair_file['roiTransformedFlair']).shape
             if(slc>a3):
                 slc=a3
-            a=np.array(tmax_file['transformedPwi'])[:, :, (slc-1)]
-            a=a.reshape(1,1,220,172)
-
-            a=a-a[0,0,10,10]
-            low_values_indices = a < -3  # Where values are low
-            high_values_indices = a > 30
-            inside_values_indices = a > 1
-            a[low_values_indices] = a[inside_values_indices].mean()
-            a[high_values_indices] = 6
-            a[inside_values_indices] /= 1.5
-            a=np.array(a, int)
-
-            tmaxIncluded[counter]=a
-    #TTP
-            slc=np.array(ttp_file['refPwi'])
-            a1,a2,a3=np.array(ttp_file['transformedPwi']).shape
-            if(slc>a3):
-                slc=a3
-            a=np.array(ttp_file['transformedPwi'])[:, :, (slc-1)]
-            a=a.reshape(1,1,220,172)
-            a=a-a[0,0,10,10]
-            low_values_indices = a < -3  # Where values are low
-            high_values_indices = a > 80
-            inside_values_indices = a > 1
-            a[low_values_indices] = a[inside_values_indices].mean()
-            a[high_values_indices] = 50
-            a[inside_values_indices] /= 4
-            a=np.array(a, int)
-            ttpIncluded[counter] = a
-    #ADC
-            slc=np.array(adc_file['refADC'])
-            a1,a2,a3=np.array(adc_file['transformedAdc']).shape
-            if(slc>a3):
-                slc=a3
-            a=np.array(adc_file['transformedAdc'])[:, :, (slc-1)]
-            a=a.reshape(1,1,220,172)/200
-            adcIncluded[counter]=a
-            #slc=np.array(adc_file['refADC'])
-    #         a1,a2,a3=np.array(adc_file['roiTransformedAdc']).shape
-    #         if(slc>a3):
-    #             slc=a3
-    #         a=np.array(adc_file['roiTransformedAdc'])[:, :, (slc-1)]
-    #         a=a.reshape(1,1,220,172)
-    #         adcRoiIncluded[counter]=a
-            #print(counter)
-            counter+=1
+            a=np.array(flair_file['roiTransformedFlair'])[:, :, (slc-1)]
+            if a.sum()>400:
+                a=a.reshape(1,220,172)
+                flairIncluded[counter]=a
+        #TMAX
+                slc=np.array(tmax_file['refPwi'])
+                a1,a2,a3=np.array(tmax_file['transformedPwi']).shape
+                if(slc>a3):
+                    slc=a3
+                a=np.array(tmax_file['transformedPwi'])[:, :, (slc-1)]
+                a=a.reshape(1,1,220,172)
+                
+                a=a-a[0,0,10,10]
+                low_values_indices = a < -3  # Where values are low
+                high_values_indices = a > 30
+                inside_values_indices = a > 1
+                a[low_values_indices] = a[inside_values_indices].mean()
+                a[high_values_indices] = 6
+                a[inside_values_indices] /= 1.5
+                a=np.array(a, int)
+                
+                tmaxIncluded[counter]=a
+        #TTP
+                slc=np.array(ttp_file['refPwi'])
+                a1,a2,a3=np.array(ttp_file['transformedPwi']).shape
+                if(slc>a3):
+                    slc=a3
+                a=np.array(ttp_file['transformedPwi'])[:, :, (slc-1)]
+                a=a.reshape(1,1,220,172)
+                a=a-a[0,0,10,10]
+                low_values_indices = a < -3  # Where values are low
+                high_values_indices = a > 80
+                inside_values_indices = a > 1
+                a[low_values_indices] = a[inside_values_indices].mean()
+                a[high_values_indices] = 50
+                a[inside_values_indices] /= 4
+                a=np.array(a, int)
+                ttpIncluded[counter] = a
+        #ADC
+                slc=np.array(adc_file['refADC'])
+                a1,a2,a3=np.array(adc_file['transformedAdc']).shape
+                if(slc>a3):
+                    slc=a3
+                a=np.array(adc_file['transformedAdc'])[:, :, (slc-1)]
+                a=a.reshape(1,1,220,172)/200
+                adcIncluded[counter]=a
+                #slc=np.array(adc_file['refADC'])
+        #         a1,a2,a3=np.array(adc_file['roiTransformedAdc']).shape
+        #         if(slc>a3):
+        #             slc=a3
+        #         a=np.array(adc_file['roiTransformedAdc'])[:, :, (slc-1)]
+        #         a=a.reshape(1,1,220,172)
+        #         adcRoiIncluded[counter]=a
+                #print(counter)
+                counter+=1
 
     flairIncluded=flairIncluded[:counter]
     tmaxIncluded=tmaxIncluded[:counter]
